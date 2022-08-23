@@ -1,92 +1,60 @@
-resource "aws_lambda_function" "lambda" {
-
-
-  function_name                  = var.function_name
-  description                    = var.description
-  role                           = var.lambda_role
-  handler                        = var.package_type != "Zip" ? null : var.handler
-  memory_size                    = var.memory_size
-  reserved_concurrent_executions = var.reserved_concurrent_executions
-  runtime                        = var.package_type != "Zip" ? null : var.runtime
-  layers                         = var.layers
-  timeout                        = var.lambda_at_edge ? min(var.timeout, 30) : var.timeout
-  publish                        = var.lambda_at_edge ? true : var.publish
-  kms_key_arn                    = var.kms_key_arn
-  image_uri                      = var.image_uri
-  package_type                   = var.package_type
-  architectures                  = var.architectures
-
-  filename          = "${path.module}/myzip/${var.filename}"
-  s3_bucket         = length(var.filename) == 0 ? var.s3_bucket : null
-  s3_key            = length(var.filename) == 0 ? var.s3_key : null
-  s3_object_version = length(var.filename) == 0 ? var.s3_object_version : null
-
-
-  /* ephemeral_storage is not supported in gov-cloud region, so it should be set to `null` */
-  dynamic "ephemeral_storage" {
-    for_each = var.ephemeral_storage_size == null ? [] : [true]
-
-    content {
-      size = var.ephemeral_storage_size
+resource "aws_iam_role" "iam_role" {
+  name               = var.eks_role
+  path               = "/"
+  assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "eks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
     }
-  }
-
-  dynamic "image_config" {
-    for_each = length(var.image_config_entry_point) > 0 || length(var.image_config_command) > 0 || var.image_config_working_directory != null ? [true] : []
-    content {
-      entry_point       = var.image_config_entry_point
-      command           = var.image_config_command
-      working_directory = var.image_config_working_directory
-    }
-  }
-
-  dynamic "environment" {
-    for_each = length(keys(var.environment_variables)) == 0 ? [] : [true]
-    content {
-      variables = var.environment_variables
-    }
-  }
-
-  dynamic "dead_letter_config" {
-    for_each = var.dead_letter_target_arn == null ? [] : [true]
-    content {
-      target_arn = var.dead_letter_target_arn
-    }
-  }
-
-  dynamic "tracing_config" {
-    for_each = var.tracing_mode == null ? [] : [true]
-    content {
-      mode = var.tracing_mode
-    }
-  }
-
-  dynamic "vpc_config" {
-    for_each = var.vpc_subnet_ids != null && var.vpc_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.vpc_security_group_ids
-      subnet_ids         = var.vpc_subnet_ids
-    }
-  }
-
-  dynamic "file_system_config" {
-    for_each = var.file_system_arn != null && var.file_system_local_mount_path != null ? [true] : []
-    content {
-      local_mount_path = var.file_system_local_mount_path
-      arn              = var.file_system_arn
-    }
-  }
-
-  tags = var.tags
-
-
-
-
-
-
-
+  ]
+}
+POLICY
 }
 
 
+# Attaching the EKS-Cluster policies to the terraformekscluster role.
+
+resource "aws_iam_role_policy_attachment" "policy_attachment" {
+  count      = length(var.policy_arn)
+  policy_arn = var.policy_arn[count.index]
+  role       = aws_iam_role.iam_role.name
+}
+
+resource "aws_eks_cluster" "cluster" {
+  name     = var.cluster_name
+  role_arn = aws_iam_role.iam_role.arn
+
+  vpc_config {
+    subnet_ids              = var.subnet_ids
+    security_group_ids      = var.security_group_ids
+    public_access_cidrs     = var.public_access_cidrs
+    endpoint_public_access  = var.endpoint_public_access
+    endpoint_private_access = var.endpoint_private_access
+  }
+  depends_on = [
+    aws_iam_role_policy_attachment.policy_attachment
+  ]
+
+  enabled_cluster_log_types = var.enable_log_types
+
+  dynamic "encryption_config" {
+    for_each = length(keys(var.key_arn)) == 0 ? [] : [true]
+    content {
+      provider {
+        key_arn = var.key_arn
+      }
+      resources = var.encryption_resources
+    }
+  }
+
+  tags    = var.tags
+  version = var.k8s_version
 
 
+}
