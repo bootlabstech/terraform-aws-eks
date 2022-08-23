@@ -57,9 +57,9 @@ variable "enable_log_types" {
 }
 
 variable "tags" {
-  type    = map(any)
+  type = map(any)
   default = {
-    
+
   }
 }
 
@@ -70,8 +70,8 @@ variable "k8s_version" {
 }
 
 variable "encryption_resources" {
-  type = list(string)
-  default = [ "value" ]
+  type    = list(string)
+  default = ["value"]
 }
 
 variable "key_arn" {
