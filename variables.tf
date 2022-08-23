@@ -53,7 +53,7 @@ variable "endpoint_private_access" {
 variable "enable_log_types" {
   type        = list(string)
   description = "Optional) List of the desired control plane logging to enable."
-  default     = []
+  default     = ["api", "audit"]
 }
 
 variable "tags" {
