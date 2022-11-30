@@ -53,8 +53,8 @@ resource "aws_eks_cluster" "cluster" {
     }
   }
 
-  tags    = var.tags
-  version = var.k8s_version
+  # tags    = var.tags
+  # version = var.k8s_version
 
 
 }

@@ -1,0 +1,12 @@
+eks_role                               = "eks_role"
+policy_arn                             = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy", "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]
+endpoint_public_access                 = true
+endpoint_private_access                = false
+enable_log_types                       = ["api", "audit"] 
+k8s_version                            = 1.14
+encryption_resources                   = ["value"]
+key_arn =
+cluster_name =
+subnet_ids =
+security_group_ids =
+public_access_cidrs =
